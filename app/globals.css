@@ -1,0 +1,26 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #ffffff;
+  --foreground: #0a0a0a;
+}
+
+html, body { background: var(--background); color: var(--foreground); }
+
+.logo-wordmark {
+  font-weight: 800;
+  letter-spacing: 0.35em;
+  font-size: 1.25rem;
+}
+
+.btn-primary {
+  @apply inline-flex items-center justify-center rounded-full bg-black text-white px-5 py-2.5 text-sm font-medium hover:bg-neutral-800 transition;
+}
+.btn-outline {
+  @apply inline-flex items-center justify-center rounded-full border border-neutral-300 px-5 py-2.5 text-sm font-medium hover:bg-neutral-100 transition;
+}
+.card {
+  @apply bg-white border border-neutral-200 overflow-hidden hover:shadow-md transition;
+}
