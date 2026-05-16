@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
 import { Lock, ExternalLink, AlertCircle } from "lucide-react";
 import { useCart } from "@/lib/cart";
@@ -15,10 +15,56 @@ function idempotencyKey() {
   return `k-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
-type PaymentsAvailability = { enabled: boolean; provider: string; reason: string };
+type PaymentsAvailability = {
+  enabled: boolean;
+  provider: "zoho" | "stripe" | "razorpay" | "mock" | "unknown";
+  reason: string;
+  keyId?: string; // Razorpay public key — only present when provider === 'razorpay'
+};
+
+type CreateOrderResponse = {
+  orderId: string;
+  paymentUrl: string | null;
+  provider: string;
+  razorpay?: {
+    orderId: string;
+    keyId: string;
+    amount: number;   // paise
+    currency: string;
+  };
+};
+
+/* ── Razorpay types ── */
+declare global {
+  interface Window {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    Razorpay: any;
+  }
+}
+
+function loadRazorpayScript(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (typeof window === "undefined") return reject(new Error("SSR"));
+    if (window.Razorpay) return resolve();
+    const script = document.createElement("script");
+    script.src = "https://checkout.razorpay.com/v1/checkout.js";
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Failed to load Razorpay SDK"));
+    document.body.appendChild(script);
+  });
+}
+
+const PROVIDER_LABEL: Record<string, string> = {
+  zoho: "Zoho Payments",
+  stripe: "Stripe",
+  razorpay: "Razorpay",
+  mock: "Mock (dev)",
+  unknown: "payment gateway",
+};
 
 export default function CheckoutPage() {
-  const { items, total } = useCart();
+  const { items, total, clear: clearCart } = useCart();
   const { user, loading } = useAuth();
   const { format } = useCurrency();
   const router = useRouter();
@@ -29,6 +75,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availability, setAvailability] = useState<PaymentsAvailability | null>(null);
+  const iKey = useRef(idempotencyKey());
 
   useEffect(() => {
     if (user) {
@@ -37,9 +84,6 @@ export default function CheckoutPage() {
     }
   }, [user]);
 
-  // Pre-check whether the payment gateway is connected before the user
-  // fills the form. Shows a clear "unavailable" card instead of letting
-  // them submit and hit a 503.
   useEffect(() => {
     let cancelled = false;
     apiGet<PaymentsAvailability>("/payments/available")
@@ -50,27 +94,31 @@ export default function CheckoutPage() {
 
   const needsAuth = !loading && !user;
   const paymentsDisabled = availability !== null && !availability.enabled;
+  const provider = availability?.provider ?? "zoho";
+  const providerLabel = PROVIDER_LABEL[provider] ?? provider;
 
   async function pay(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    if (needsAuth) {
-      router.push("/login?next=/checkout");
-      return;
-    }
-    if (items.length === 0) {
-      setError("Your cart is empty.");
-      return;
-    }
+    if (needsAuth) { router.push("/login?next=/checkout"); return; }
+    if (items.length === 0) { setError("Your cart is empty."); return; }
+
     setSubmitting(true);
     try {
-      const res = await apiPost<{ orderId: string; paymentUrl: string }>(
+      const res = await apiPost<CreateOrderResponse>(
         "/payments/create-order",
         { billing: { name, email, country } },
-        { headers: { "Idempotency-Key": idempotencyKey() } },
+        { headers: { "Idempotency-Key": iKey.current } },
       );
-      // Redirect to Zoho hosted checkout.
-      if (typeof window !== "undefined") window.location.href = res.paymentUrl;
+
+      if (res.provider === "razorpay" && res.razorpay) {
+        await openRazorpayWidget(res);
+      } else if (res.paymentUrl) {
+        // Zoho or Stripe — redirect to hosted checkout.
+        window.location.href = res.paymentUrl;
+      } else {
+        throw new Error("No payment URL returned from server");
+      }
     } catch (err) {
       const msg = apiError(err, "Checkout failed");
       setError(msg);
@@ -79,7 +127,50 @@ export default function CheckoutPage() {
     }
   }
 
-  // Payments are off — show a friendly full-width card and hide the form.
+  async function openRazorpayWidget(res: CreateOrderResponse) {
+    if (!res.razorpay) return;
+    await loadRazorpayScript();
+
+    const rzp = new window.Razorpay({
+      key: res.razorpay.keyId,
+      amount: res.razorpay.amount,
+      currency: res.razorpay.currency,
+      order_id: res.razorpay.orderId,
+      name: "Lexxus",
+      description: `Order ${res.orderId}`,
+      prefill: { name, email },
+      theme: { color: "#000000" },
+      handler: async function (response: {
+        razorpay_order_id: string;
+        razorpay_payment_id: string;
+        razorpay_signature: string;
+      }) {
+        // Verify on the server and mark order paid.
+        try {
+          await apiPost("/payments/razorpay/verify", {
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+            orderId: res.orderId,
+          });
+          clearCart?.();
+          router.push(`/checkout/success?orderId=${res.orderId}`);
+        } catch (err) {
+          const msg = apiError(err, "Payment verification failed");
+          setError(msg);
+          toast.error(msg);
+          setSubmitting(false);
+        }
+      },
+      modal: {
+        ondismiss: () => {
+          setSubmitting(false);
+        },
+      },
+    });
+    rzp.open();
+  }
+
   if (paymentsDisabled) {
     return (
       <div className="max-w-[1100px] mx-auto px-4 lg:px-8 py-16">
@@ -96,10 +187,7 @@ export default function CheckoutPage() {
                 <Link href="/cart" className="inline-flex items-center border border-amber-700 text-amber-900 px-5 py-2 text-xs tracking-widest uppercase hover:bg-amber-100">
                   Back to cart
                 </Link>
-                <button
-                  onClick={() => window.location.reload()}
-                  className="inline-flex items-center bg-amber-700 text-white px-5 py-2 text-xs tracking-widest uppercase hover:bg-amber-800"
-                >
+                <button onClick={() => window.location.reload()} className="inline-flex items-center bg-amber-700 text-white px-5 py-2 text-xs tracking-widest uppercase hover:bg-amber-800">
                   Try again
                 </button>
               </div>
@@ -117,13 +205,9 @@ export default function CheckoutPage() {
       {needsAuth && (
         <div className="mb-6 p-4 border border-amber-300 bg-amber-50 text-sm text-amber-900">
           Please{" "}
-          <Link href="/login?next=/checkout" className="underline font-semibold">
-            sign in
-          </Link>{" "}
+          <Link href="/login?next=/checkout" className="underline font-semibold">sign in</Link>{" "}
           or{" "}
-          <Link href="/signup" className="underline font-semibold">
-            create an account
-          </Link>{" "}
+          <Link href="/signup" className="underline font-semibold">create an account</Link>{" "}
           to complete checkout.
         </div>
       )}
@@ -140,10 +224,14 @@ export default function CheckoutPage() {
           </section>
 
           <section className="border border-neutral-200 p-6 bg-neutral-50">
-            <h3 className="font-semibold mb-2 flex items-center gap-2"><Lock className="w-4 h-4" /> Secure payment via Zoho</h3>
+            <h3 className="font-semibold mb-2 flex items-center gap-2">
+              <Lock className="w-4 h-4" />
+              Secure payment via {providerLabel}
+            </h3>
             <p className="text-xs text-neutral-600">
-              You&apos;ll be redirected to Zoho&apos;s secure hosted payment page to complete
-              your purchase. We never see your card details.
+              {provider === "razorpay"
+                ? "A secure payment window will open. We never see your card details."
+                : `You'll be redirected to ${providerLabel}'s secure hosted payment page. We never see your card details.`}
             </p>
           </section>
 
@@ -155,7 +243,11 @@ export default function CheckoutPage() {
             className="inline-flex items-center justify-center gap-2 bg-black text-white px-6 py-3 text-sm tracking-widest uppercase disabled:opacity-50 w-full"
           >
             <ExternalLink className="w-4 h-4" />
-            {submitting ? "Creating order…" : availability === null ? "Checking payment…" : `Pay ${format(total)}`}
+            {submitting
+              ? provider === "razorpay" ? "Opening payment…" : "Creating order…"
+              : availability === null
+                ? "Checking payment…"
+                : `Pay ${format(total)}`}
           </button>
           <div className="text-[11px] text-neutral-500 text-center">
             By continuing you agree to our{" "}
@@ -191,21 +283,10 @@ export default function CheckoutPage() {
 }
 
 function Field({
-  label,
-  value,
-  onChange,
-  className = "",
-  type = "text",
-  required,
-  maxLength,
+  label, value, onChange, className = "", type = "text", required, maxLength,
 }: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  className?: string;
-  type?: string;
-  required?: boolean;
-  maxLength?: number;
+  label: string; value: string; onChange: (v: string) => void;
+  className?: string; type?: string; required?: boolean; maxLength?: number;
 }) {
   return (
     <label className={`block ${className}`}>
