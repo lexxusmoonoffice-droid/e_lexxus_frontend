@@ -149,10 +149,27 @@ export function useUpdateProfile() {
   });
 }
 
+/** Shape returned by POST /payments/create-order for all providers */
+export type CreateOrderResult = {
+  orderId: string;
+  /** Zoho: hosted checkout URL; null for widget-based providers */
+  paymentUrl: string | null;
+  provider: "zoho" | "stripe" | "razorpay" | "mock" | string;
+  /** Razorpay widget payload — only present when provider === "razorpay" */
+  razorpay?: {
+    orderId: string;   // Razorpay order ID (prefix: order_)
+    keyId: string;     // public key — safe to use in browser
+    amount: number;    // amount in paise
+    currency: string;  // e.g. "INR"
+  };
+  /** Stripe: client secret for Stripe.js confirmPayment */
+  stripeClientSecret?: string;
+};
+
 export function useCreateOrder() {
   return useMutation({
-    mutationFn: (body: { billing: { country: string; name?: string; email?: string } }) =>
-      apiPost<{ orderId: string; paymentUrl: string }>(
+    mutationFn: (body: { billing: { country: string; name?: string; email?: string }; provider?: string }) =>
+      apiPost<CreateOrderResult>(
         "/payments/create-order",
         body,
         { headers: { "Idempotency-Key": cryptoRandom() } },
