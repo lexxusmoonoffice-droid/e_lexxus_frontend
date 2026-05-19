@@ -7,7 +7,14 @@
   --foreground: #0a0a0a;
 }
 
-html, body { background: var(--background); color: var(--foreground); }
+html {
+  /* Scale the rem base so the site looks right at 100% browser zoom.
+     Without this, everything appeared correctly sized only at 90% zoom. */
+  font-size: 90%;
+  background: var(--background);
+  color: var(--foreground);
+}
+body { background: var(--background); color: var(--foreground); }
 
 .logo-wordmark {
   font-weight: 800;

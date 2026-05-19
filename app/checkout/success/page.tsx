@@ -287,8 +287,12 @@ function NoOrderScreen() {
 function CheckoutSuccessInner() {
   const searchParams = useSearchParams();
   const orderId = searchParams.get("orderId") || undefined;
+  // Stripe appends ?session_id=cs_test_... to the success URL — pass it
+  // to the status hook so the backend can verify the session directly
+  // (fallback for local dev where webhooks can't reach localhost).
+  const stripeSessionId = searchParams.get("session_id") || undefined;
   const { clear } = useCart();
-  const { data, isLoading } = useOrderStatus(orderId, !!orderId);
+  const { data, isLoading } = useOrderStatus(orderId, !!orderId, stripeSessionId);
   const clearedRef = useRef(false);
 
   useEffect(() => {

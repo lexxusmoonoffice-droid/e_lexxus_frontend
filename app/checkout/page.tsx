@@ -66,7 +66,7 @@ const PROVIDER_LABEL: Record<string, string> = {
 export default function CheckoutPage() {
   const { items, total, clear: clearCart } = useCart();
   const { user, loading } = useAuth();
-  const { format } = useCurrency();
+  const { format, code: currencyCode } = useCurrency();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -107,7 +107,12 @@ export default function CheckoutPage() {
     try {
       const res = await apiPost<CreateOrderResponse>(
         "/payments/create-order",
-        { billing: { name, email, country } },
+        {
+          billing: { name, email, country },
+          // Tell the backend which currency to charge in.
+          // The backend converts the INR subtotal to the requested currency.
+          currency: currencyCode,
+        },
         { headers: { "Idempotency-Key": iKey.current } },
       );
 
@@ -249,10 +254,16 @@ export default function CheckoutPage() {
                 ? "Checking payment…"
                 : `Pay ${format(total)}`}
           </button>
-          <div className="text-[11px] text-neutral-500 text-center">
+
+          {/* Currency notice — tells the user which currency they'll be charged in */}
+          <p className="text-[11px] text-neutral-500 text-center">
+            {currencyCode === "USD"
+              ? <>You will be charged in <span className="font-semibold text-neutral-700">USD</span> ({format(total)} · ₹{total.toLocaleString("en-IN")} equivalent).</>
+              : <>You will be charged in <span className="font-semibold text-neutral-700">INR (₹)</span>.</>
+            }{" "}
             By continuing you agree to our{" "}
             <Link href="/terms" className="underline">Terms</Link>.
-          </div>
+          </p>
         </form>
 
         <aside className="h-fit border border-neutral-200 p-6">

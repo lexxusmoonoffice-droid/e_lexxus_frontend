@@ -5,6 +5,7 @@ import Logo from "./Logo";
 import { Linkedin, Facebook, Youtube, Instagram, Twitter } from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
+import { useCategories } from "@/lib/hooks";
 
 type SocialLinks = {
   linkedin?: string;
@@ -24,6 +25,7 @@ const SOCIAL_ICONS: { key: keyof SocialLinks; Icon: React.ElementType }[] = [
 
 export default function Footer() {
   const [social, setSocial] = useState<SocialLinks>({});
+  const { data: categoriesData } = useCategories();
 
   useEffect(() => {
     apiGet<{ social?: SocialLinks }>("/settings/public")
@@ -32,6 +34,10 @@ export default function Footer() {
   }, []);
 
   const activeLinks = SOCIAL_ICONS.filter(({ key }) => !!social[key]);
+
+  // Top-level categories (getTree returns root-level items with children nested)
+  const categoryLinks: [string, string][] = (categoriesData?.data || [])
+    .map((c) => [c.name, `/c/${c.slug}`] as [string, string]);
 
   return (
     <footer className="bg-neutral-50 border-t border-neutral-200 mt-24">
@@ -57,14 +63,21 @@ export default function Footer() {
                   </a>
                 ))
               : SOCIAL_ICONS.map(({ key, Icon }) => (
-                  <div key={key} className="w-8 h-8 border border-neutral-300 rounded flex items-center justify-center">
+                  <div key={key} className="w-8 h-8 border border-neutral-300 rounded flex items-center justify-center opacity-30">
                     <Icon className="w-4 h-4" />
                   </div>
                 ))}
           </div>
         </div>
 
-        <FooterCol title="Products" links={[["3D Models","/c/models"],["3D Scenes","/c/scenes"],["Textures","/c/textures"]]} />
+        <FooterCol
+          title="Products"
+          links={
+            categoryLinks.length > 0
+              ? categoryLinks
+              : [["3D Models", "/c/models"], ["3D Scenes", "/c/scenes"], ["Textures", "/c/textures"]]
+          }
+        />
         <FooterCol title="Company" links={[["About us","/about"],["Blog","/blog"],["Statistics","/statistics"],["Portfolio","/portfolio"]]} />
         <FooterCol title="Support" links={[["FAQ","/faq"],["Feedback","/feedback"],["Privacy Policy","/privacy"],["Terms of Service","/terms"],["License Terms","/license"]]} />
       </div>

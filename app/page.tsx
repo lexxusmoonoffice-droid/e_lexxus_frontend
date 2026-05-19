@@ -1,6 +1,7 @@
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
 import HeroCarousel from "@/components/HeroCarousel";
+import CategoryCarousel from "@/components/CategoryCarousel";
 import { serverGet } from "@/lib/fetcher";
 import { toLegacyBundle, toLegacyProduct } from "@/lib/adapters";
 import type { ApiBundle, ApiCategory, ApiProduct, Paginated } from "@/lib/types";
@@ -52,7 +53,10 @@ export default async function HomePage() {
       serverGet<Paginated<ApiBundle>>("/bundles?limit=2", { tag: "bundles" }),
       { data: [], page: 1, limit: 2, total: 0, pages: 0 } as Paginated<ApiBundle>,
     ),
-    safe(serverGet<{ data: (ApiCategory & { image?: string; productCount?: number })[] }>("/categories", { tag: "categories" }), { data: [] }),
+    safe(
+      serverGet<{ data: (ApiCategory & { image?: string; productCount?: number; children?: (ApiCategory & { productCount?: number })[] })[] }>("/categories", { tag: "categories" }),
+      { data: [] },
+    ),
   ]);
 
   const featured = featuredRaw.data.map(toLegacyProduct);
@@ -61,18 +65,19 @@ export default async function HomePage() {
   const bundles = bundlesRaw.data.map(toLegacyBundle);
 
   // Top-level categories become the "Browse by Type" cards. Each card
-  // links to the dynamic /c/:slug page.
+  // links to the dynamic /c/:slug page. Count includes all subcategories.
   const collectionCards = categoriesRaw.data
     .filter((c) => !c.parent)
-    .map((c) => ({
-      name: c.name,
-      count: typeof c.productCount === "number" ? `${c.productCount}+ assets` : "Collection",
-      img:
-        (c as { image?: string }).image ||
-        COLLECTION_IMAGE_FALLBACK[c.slug] ||
-        DEFAULT_COLLECTION_IMAGE,
-      href: `/c/${c.slug}`,
-    }));
+    .map((c) => {
+      const childTotal = (c.children || []).reduce((s, ch) => s + (ch.productCount ?? 0), 0);
+      const total = (c.productCount ?? 0) + childTotal;
+      return {
+        name: c.name,
+        count: total > 0 ? `${total} assets` : "Collection",
+        img: c.image || COLLECTION_IMAGE_FALLBACK[c.slug] || DEFAULT_COLLECTION_IMAGE,
+        href: `/c/${c.slug}`,
+      };
+    });
 
   return (
     <div className="bg-white">
@@ -99,21 +104,7 @@ export default async function HomePage() {
             <h2 className="text-4xl font-bold mt-3">Explore the Collection</h2>
           </div>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {(collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS).map((c) => (
-            <Link key={c.name} href={c.href} className="group relative overflow-hidden aspect-[3/4]">
-              <img src={c.img} alt={c.name} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition duration-700" />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-              <div className="absolute bottom-0 left-0 right-0 p-6">
-                <div className="text-[10px] tracking-[0.3em] uppercase text-neutral-300">{c.count}</div>
-                <div className="text-white font-bold text-xl mt-1">{c.name}</div>
-                <div className="flex items-center gap-2 mt-3 text-xs text-white/70 group-hover:text-white transition">
-                  Shop Now <ArrowRight className="w-3 h-3" />
-                </div>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <CategoryCarousel cards={collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS} />
       </section>
 
       {featured.length > 0 && (

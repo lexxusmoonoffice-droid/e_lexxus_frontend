@@ -65,7 +65,17 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: () => apiGet<{ data: ApiCategory[] }>("/categories"),
-    staleTime: 60 * 60_000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useCategoriesWithPreviews() {
+  return useQuery({
+    queryKey: ["categories", "with-previews"],
+    queryFn: () => apiGet<{ data: ApiCategory[] }>("/categories/tree-with-previews"),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -180,12 +190,15 @@ export function useCreateOrder() {
   });
 }
 
-export function useOrderStatus(orderId?: string, enabled = true) {
+export function useOrderStatus(orderId?: string, enabled = true, stripeSessionId?: string) {
   return useQuery({
-    queryKey: ["payments", "order-status", orderId],
+    queryKey: ["payments", "order-status", orderId, stripeSessionId],
     queryFn: () =>
       apiGet<{ id: string; status: string; downloadToken: string | null; paidAt?: string }>(
         `/payments/order/${orderId}/status`,
+        // Pass Stripe session_id so the backend can verify directly
+        // when webhooks can't reach localhost (local dev fallback).
+        stripeSessionId ? { session_id: stripeSessionId } : undefined,
       ),
     enabled: !!orderId && enabled,
     refetchInterval: (query) => {
