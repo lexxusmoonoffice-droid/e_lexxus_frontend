@@ -13,6 +13,14 @@ export interface ApiBrand {
   country?: string;
 }
 
+export interface ApiProductPreview {
+  id: string;
+  title: string;
+  slug: string;
+  thumbnail?: string;
+  price: number;
+}
+
 export interface ApiCategory {
   id: string;
   name: string;
@@ -20,6 +28,7 @@ export interface ApiCategory {
   parent?: string | null;
   image?: string;
   children?: ApiCategory[];
+  previews?: ApiProductPreview[];
 }
 
 export interface ApiProduct {

@@ -65,7 +65,17 @@ export function useCategories() {
   return useQuery({
     queryKey: ["categories"],
     queryFn: () => apiGet<{ data: ApiCategory[] }>("/categories"),
-    staleTime: 60 * 60_000,
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
+  });
+}
+
+export function useCategoriesWithPreviews() {
+  return useQuery({
+    queryKey: ["categories", "with-previews"],
+    queryFn: () => apiGet<{ data: ApiCategory[] }>("/categories/tree-with-previews"),
+    staleTime: 60_000,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -149,10 +159,27 @@ export function useUpdateProfile() {
   });
 }
 
+/** Shape returned by POST /payments/create-order for all providers */
+export type CreateOrderResult = {
+  orderId: string;
+  /** Zoho: hosted checkout URL; null for widget-based providers */
+  paymentUrl: string | null;
+  provider: "zoho" | "stripe" | "razorpay" | "mock" | string;
+  /** Razorpay widget payload — only present when provider === "razorpay" */
+  razorpay?: {
+    orderId: string;   // Razorpay order ID (prefix: order_)
+    keyId: string;     // public key — safe to use in browser
+    amount: number;    // amount in paise
+    currency: string;  // e.g. "INR"
+  };
+  /** Stripe: client secret for Stripe.js confirmPayment */
+  stripeClientSecret?: string;
+};
+
 export function useCreateOrder() {
   return useMutation({
-    mutationFn: (body: { billing: { country: string; name?: string; email?: string } }) =>
-      apiPost<{ orderId: string; paymentUrl: string }>(
+    mutationFn: (body: { billing: { country: string; name?: string; email?: string }; provider?: string }) =>
+      apiPost<CreateOrderResult>(
         "/payments/create-order",
         body,
         { headers: { "Idempotency-Key": cryptoRandom() } },
@@ -163,12 +190,15 @@ export function useCreateOrder() {
   });
 }
 
-export function useOrderStatus(orderId?: string, enabled = true) {
+export function useOrderStatus(orderId?: string, enabled = true, stripeSessionId?: string) {
   return useQuery({
-    queryKey: ["payments", "order-status", orderId],
+    queryKey: ["payments", "order-status", orderId, stripeSessionId],
     queryFn: () =>
       apiGet<{ id: string; status: string; downloadToken: string | null; paidAt?: string }>(
         `/payments/order/${orderId}/status`,
+        // Pass Stripe session_id so the backend can verify directly
+        // when webhooks can't reach localhost (local dev fallback).
+        stripeSessionId ? { session_id: stripeSessionId } : undefined,
       ),
     enabled: !!orderId && enabled,
     refetchInterval: (query) => {
