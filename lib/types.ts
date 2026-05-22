@@ -27,6 +27,7 @@ export interface ApiCategory {
   slug: string;
   parent?: string | null;
   image?: string;
+  productCount?: number;
   children?: ApiCategory[];
   previews?: ApiProductPreview[];
 }
