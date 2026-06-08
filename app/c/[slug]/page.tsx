@@ -70,7 +70,10 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   let productsRes: Paginated<ApiProduct>;
   if (selectedSub) {
-    productsRes = await fetchProducts({ category: selectedSub, q: query, limit: 48 });
+    // Use subCategory param so the backend can match both:
+    //   - old products: category = subcatId (direct)
+    //   - new products: subCategory = subcatId, category = parentId
+    productsRes = await fetchProducts({ subCategory: selectedSub, q: query, limit: 48 });
   } else if (query) {
     productsRes = await fetchProducts({ category: category.slug, q: query, limit: 48 });
   } else {
