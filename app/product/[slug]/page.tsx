@@ -41,12 +41,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
   if (!d) return notFound();
   const p = toLegacyProduct(d.product);
   const related = d.related.map(toLegacyProduct);
-  const images = p.images.length > 0 ? p.images : [p.image];
+  const images = [...p.images.filter(Boolean), ...(p.image ? [p.image] : [])].filter(
+    (v, i, a) => a.indexOf(v) === i
+  );
 
   return (
     <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
       <div className="text-xs text-neutral-500 mb-6">
-        lexxus.com / 3D Models / {p.category} / {p.name}
+        lexxus.com / {p.category} / {p.name}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-10">
@@ -65,9 +67,10 @@ export default async function ProductPage({ params }: { params: { slug: string }
                 <Row k="File size" v={`${p.fileSizeMb} Mb`} />
               </tbody>
             </table>
-            <p className="text-sm text-neutral-700 leading-relaxed mt-6 max-w-2xl">
-              {p.description}
-            </p>
+            <div
+              className="text-sm text-neutral-700 leading-relaxed mt-6 max-w-2xl prose prose-sm"
+              dangerouslySetInnerHTML={{ __html: p.description || "" }}
+            />
             {p.dimensions && (
               <div className="text-sm text-neutral-700 mt-4">
                 Width — {p.dimensions.w} cm

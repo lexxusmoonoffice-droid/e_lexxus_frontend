@@ -28,7 +28,7 @@ export async function serverGet<T>(path: string, opts: Opts = {}): Promise<T> {
     next,
     headers: { accept: 'application/json' },
   };
-  if (opts.noCache) {
+  if (opts.noCache || process.env.NODE_ENV === 'development') {
     init.cache = 'no-store';
   }
 

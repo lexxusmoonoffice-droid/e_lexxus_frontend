@@ -41,7 +41,7 @@ export default function Gallery({ images, alt }: { images: string[]; alt: string
       </button>
 
       {safeImages.length > 1 && (
-        <div className="grid grid-cols-4 gap-3 mt-4">
+        <div className="flex flex-wrap gap-2 mt-3">
           {safeImages.slice(0, 8).map((src, i) => (
             <button
               key={`${src}-${i}`}
@@ -49,7 +49,7 @@ export default function Gallery({ images, alt }: { images: string[]; alt: string
               onClick={() => setActive(i)}
               aria-label={`Show image ${i + 1}`}
               aria-pressed={i === active}
-              className={`aspect-square bg-neutral-100 rounded-lg overflow-hidden border-2 transition ${
+              className={`w-16 h-16 shrink-0 bg-neutral-100 rounded-md overflow-hidden border-2 transition ${
                 i === active ? "border-black" : "border-transparent hover:border-neutral-400"
               }`}
             >

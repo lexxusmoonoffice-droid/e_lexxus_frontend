@@ -1,24 +1,35 @@
 "use client";
 import Link from "next/link";
 import { Search, ShoppingBag, Heart, Menu, X, User, ChevronRight } from "lucide-react";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Logo from "./Logo";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { useAuth } from "@/lib/auth";
-import { useCategoriesWithPreviews } from "@/lib/hooks";
+import { useCategoriesWithPreviews, useSearchSuggestions } from "@/lib/hooks";
 import CartDrawer from "./CartDrawer";
 import WishlistDrawer from "./WishlistDrawer";
 import type { ApiCategory, ApiProductPreview } from "@/lib/types";
 
 const STATIC_NAV = [{ name: "Bundles", href: "/bundles" }];
 
+function useDebounce(value: string, ms: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms);
+    return () => clearTimeout(t);
+  }, [value, ms]);
+  return debounced;
+}
+
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [wishlistOpen, setWishlistOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [suggestOpen, setSuggestOpen] = useState(false);
+  const searchRef = useRef<HTMLDivElement>(null);
   const { items: cartItems } = useCart();
   const { items: wishlistItems } = useWishlist();
   const { user } = useAuth();
@@ -26,14 +37,38 @@ export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
 
+  const debouncedQuery = useDebounce(query, 300);
+  const { data: suggestData, isFetching: suggestLoading } = useSearchSuggestions(debouncedQuery);
+  const suggestions = suggestData?.products || [];
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function onDown(e: MouseEvent) {
+      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+        setSuggestOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, []);
+
+  // Close on route change
+  useEffect(() => { setSuggestOpen(false); setQuery(""); }, [pathname]);
+
   const topCategories = categoriesData?.data || [];
   const firstCatHref = topCategories[0] ? `/c/${topCategories[0].slug}` : "/c/models";
 
   const handleSearch = (e?: React.FormEvent) => {
     e?.preventDefault();
     const q = query.trim();
-    if (q) router.push(`${firstCatHref}?q=${encodeURIComponent(q)}`);
+    if (q) { setSuggestOpen(false); router.push(`/search?q=${encodeURIComponent(q)}`); }
   };
+
+  function pickSuggestion(slug: string) {
+    setSuggestOpen(false);
+    setQuery("");
+    router.push(`/product/${slug}`);
+  }
 
   function openCart() {
     if (!user) { router.push("/login?next=/cart"); return; }
@@ -51,20 +86,71 @@ export default function Header() {
         <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-4 flex items-center gap-4">
           <Logo />
 
-          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-2xl mx-auto relative">
-            <div className="flex items-center w-full bg-neutral-100 px-5 py-2.5">
-              <Search className="w-4 h-4 text-neutral-500 shrink-0" />
-              <input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="What are you looking for?"
-                className="flex-1 bg-transparent outline-none text-sm ml-3"
-              />
-              <button type="submit" className="bg-black text-white px-4 py-1.5 text-xs font-medium">
-                Search
-              </button>
-            </div>
-          </form>
+          <div ref={searchRef} className="hidden md:flex flex-1 max-w-2xl mx-auto relative">
+            <form onSubmit={handleSearch} className="w-full">
+              <div className="flex items-center w-full bg-neutral-100 px-5 py-2.5">
+                <Search className="w-4 h-4 text-neutral-500 shrink-0" />
+                <input
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setSuggestOpen(true); }}
+                  onFocus={() => { if (query.length >= 2) setSuggestOpen(true); }}
+                  onKeyDown={(e) => { if (e.key === "Escape") { setSuggestOpen(false); } }}
+                  placeholder="What are you looking for?"
+                  className="flex-1 bg-transparent outline-none text-sm ml-3"
+                  autoComplete="off"
+                />
+                <button type="submit" className="bg-black text-white px-4 py-1.5 text-xs font-medium">
+                  Search
+                </button>
+              </div>
+            </form>
+
+            {/* Suggestions dropdown */}
+            {suggestOpen && debouncedQuery.length >= 2 && (
+              <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-neutral-200 shadow-xl z-50 max-h-[420px] overflow-y-auto">
+                {suggestLoading && suggestions.length === 0 && (
+                  <div className="px-4 py-3 text-sm text-neutral-400">Searching…</div>
+                )}
+                {!suggestLoading && suggestions.length === 0 && (
+                  <div className="px-4 py-3 text-sm text-neutral-400">No results for "{debouncedQuery}"</div>
+                )}
+                {suggestions.length > 0 && (
+                  <>
+                    <div className="px-4 pt-3 pb-1 text-[10px] font-semibold text-neutral-400 uppercase tracking-widest">Products</div>
+                    {suggestions.map((p) => (
+                      <button
+                        key={p.id || p.slug}
+                        type="button"
+                        onMouseDown={() => pickSuggestion(p.slug)}
+                        className="w-full flex items-center gap-3 px-4 py-2.5 hover:bg-neutral-50 transition text-left"
+                      >
+                        <div className="w-10 h-10 shrink-0 bg-neutral-100 rounded overflow-hidden">
+                          {p.thumbnail
+                            ? <img src={p.thumbnail} alt={p.title} className="w-full h-full object-cover" />
+                            : <div className="w-full h-full bg-neutral-200" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{p.title}</div>
+                          <div className="text-xs text-neutral-400">
+                            {p.price === 0 ? "Free" : `₹${p.price?.toLocaleString("en-IN")}`}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                    <div className="border-t border-neutral-100 px-4 py-2.5">
+                      <button
+                        type="button"
+                        onMouseDown={handleSearch}
+                        className="text-xs font-medium text-black hover:underline"
+                      >
+                        See all results for "{debouncedQuery}" →
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="hidden md:flex items-center gap-3 text-sm">
             <button onClick={openWishlist} className="relative p-1 hover:opacity-70 transition" aria-label="Wishlist">
@@ -216,9 +302,9 @@ function MegaMenuItem({ cat, active }: { cat: ApiCategory; active: boolean }) {
               All {cat.name}
             </Link>
             {subs.map((sub) => (
-              <button
+              <Link
                 key={sub.id}
-                type="button"
+                href={`/c/${cat.slug}?sub=${sub.slug}`}
                 onMouseEnter={() => { cancelClose(); setHoveredSub(sub); }}
                 className={`w-full flex items-center gap-2 px-4 py-2 text-sm text-left transition-colors ${
                   activeSub?.id === sub.id
@@ -231,7 +317,7 @@ function MegaMenuItem({ cat, active }: { cat: ApiCategory; active: boolean }) {
                 )}
                 <span className="flex-1 truncate">{sub.name}</span>
                 <ChevronRight className="w-3 h-3 text-neutral-400 shrink-0" />
-              </button>
+              </Link>
             ))}
           </div>
 

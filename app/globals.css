@@ -8,9 +8,7 @@
 }
 
 html {
-  /* Scale the rem base so the site looks right at 100% browser zoom.
-     Without this, everything appeared correctly sized only at 90% zoom. */
-  font-size: 90%;
+  zoom: 0.9;
   background: var(--background);
   color: var(--foreground);
 }
