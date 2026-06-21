@@ -15,10 +15,18 @@ function idempotencyKey() {
   return `k-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+type ProviderInfo = {
+  id: "zoho" | "stripe" | "razorpay" | "mock";
+  label: string;
+  enabled: boolean;
+  keyId?: string;
+};
+
 type PaymentsAvailability = {
   enabled: boolean;
   provider: "zoho" | "stripe" | "razorpay" | "mock" | "unknown";
   reason: string;
+  providers?: ProviderInfo[];
   keyId?: string; // Razorpay public key — only present when provider === 'razorpay'
 };
 
@@ -75,6 +83,7 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [availability, setAvailability] = useState<PaymentsAvailability | null>(null);
+  const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
   const iKey = useRef(idempotencyKey());
 
   useEffect(() => {
@@ -87,15 +96,26 @@ export default function CheckoutPage() {
   useEffect(() => {
     let cancelled = false;
     apiGet<PaymentsAvailability>("/payments/available")
-      .then((r) => { if (!cancelled) setAvailability(r); })
+      .then((r) => {
+        if (cancelled) return;
+        setAvailability(r);
+        // Auto-select first available provider (prefer the backend default).
+        setSelectedProvider((prev) => {
+          if (prev) return prev;
+          return r.providers?.[0]?.id ?? r.provider ?? null;
+        });
+      })
       .catch(() => { if (!cancelled) setAvailability({ enabled: false, provider: "unknown", reason: "NETWORK" }); });
     return () => { cancelled = true; };
   }, []);
 
   const needsAuth = !loading && !user;
   const paymentsDisabled = availability !== null && !availability.enabled;
-  const provider = availability?.provider ?? "zoho";
-  const providerLabel = PROVIDER_LABEL[provider] ?? provider;
+  const availableProviders = availability?.providers ?? [];
+  const multiProvider = availableProviders.length > 1;
+  // Active provider for display / request: user selection → backend default → zoho fallback
+  const activeProvider = selectedProvider ?? availability?.provider ?? "zoho";
+  const providerLabel = PROVIDER_LABEL[activeProvider] ?? activeProvider;
 
   async function pay(e: React.FormEvent) {
     e.preventDefault();
@@ -109,9 +129,11 @@ export default function CheckoutPage() {
         "/payments/create-order",
         {
           billing: { name, email, country },
-          // Tell the backend which currency to charge in.
-          // The backend converts the INR subtotal to the requested currency.
           currency: currencyCode,
+          // Pass selected provider so backend routes to the right gateway.
+          ...(activeProvider && activeProvider !== "unknown" && activeProvider !== "mock"
+            ? { provider: activeProvider as "zoho" | "stripe" | "razorpay" }
+            : {}),
         },
         { headers: { "Idempotency-Key": iKey.current } },
       );
@@ -228,13 +250,37 @@ export default function CheckoutPage() {
             </div>
           </section>
 
+          {/* Payment method selector — only shown when multiple providers are enabled */}
+          {multiProvider && (
+            <section className="border border-neutral-200 p-6">
+              <h3 className="font-semibold mb-4">Payment method</h3>
+              <div className="space-y-3">
+                {availableProviders.map((p) => (
+                  <label key={p.id} className="flex items-center gap-3 cursor-pointer group">
+                    <input
+                      type="radio"
+                      name="provider"
+                      value={p.id}
+                      checked={selectedProvider === p.id}
+                      onChange={() => setSelectedProvider(p.id)}
+                      className="accent-black w-4 h-4"
+                    />
+                    <span className="text-sm font-medium group-hover:text-black">
+                      {PROVIDER_LABEL[p.id] ?? p.label}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section className="border border-neutral-200 p-6 bg-neutral-50">
             <h3 className="font-semibold mb-2 flex items-center gap-2">
               <Lock className="w-4 h-4" />
               Secure payment via {providerLabel}
             </h3>
             <p className="text-xs text-neutral-600">
-              {provider === "razorpay"
+              {activeProvider === "razorpay"
                 ? "A secure payment window will open. We never see your card details."
                 : `You'll be redirected to ${providerLabel}'s secure hosted payment page. We never see your card details.`}
             </p>
@@ -249,7 +295,7 @@ export default function CheckoutPage() {
           >
             <ExternalLink className="w-4 h-4" />
             {submitting
-              ? provider === "razorpay" ? "Opening payment…" : "Creating order…"
+              ? activeProvider === "razorpay" ? "Opening payment…" : "Creating order…"
               : availability === null
                 ? "Checking payment…"
                 : `Pay ${format(total)}`}

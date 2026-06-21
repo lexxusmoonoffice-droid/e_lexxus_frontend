@@ -79,6 +79,15 @@ export function useCategoriesWithPreviews() {
   });
 }
 
+export function useSearchSuggestions(q: string) {
+  return useQuery({
+    queryKey: ["search", "suggestions", q],
+    queryFn: () => apiGet<{ products: ApiProduct[]; bundles: ApiProduct[]; q: string }>("/search", { q, limit: 6 }),
+    enabled: q.length >= 2,
+    staleTime: 30_000,
+  });
+}
+
 export function useBrands() {
   return useQuery({
     queryKey: ["brands"],

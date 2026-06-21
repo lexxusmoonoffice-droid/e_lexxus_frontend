@@ -30,7 +30,7 @@ export default function ProductCard({ p }: { p: Product }) {
         <div className="relative aspect-square bg-neutral-100 overflow-hidden">
           {/* Default image */}
           <img
-            src={p.image}
+            src={p.image || "/placeholder.svg"}
             alt={p.name}
             className={`w-full h-full object-cover transition duration-500 ${p.hoverImage ? "group-hover:opacity-0" : "group-hover:scale-105"}`}
           />
