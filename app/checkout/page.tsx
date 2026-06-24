@@ -19,6 +19,7 @@ type ProviderInfo = {
   id: "zoho" | "stripe" | "razorpay" | "mock";
   label: string;
   enabled: boolean;
+  reason?: string;
   keyId?: string;
 };
 
@@ -99,10 +100,11 @@ export default function CheckoutPage() {
       .then((r) => {
         if (cancelled) return;
         setAvailability(r);
-        // Auto-select first available provider (prefer the backend default).
+        // Auto-select first ENABLED provider (prefer backend default).
         setSelectedProvider((prev) => {
           if (prev) return prev;
-          return r.providers?.[0]?.id ?? r.provider ?? null;
+          const firstEnabled = r.providers?.find((p) => p.enabled);
+          return firstEnabled?.id ?? r.provider ?? null;
         });
       })
       .catch(() => { if (!cancelled) setAvailability({ enabled: false, provider: "unknown", reason: "NETWORK" }); });
@@ -111,10 +113,18 @@ export default function CheckoutPage() {
 
   const needsAuth = !loading && !user;
   const paymentsDisabled = availability !== null && !availability.enabled;
-  const availableProviders = availability?.providers ?? [];
-  const multiProvider = availableProviders.length > 1;
-  // Active provider for display / request: user selection → backend default → zoho fallback
-  const activeProvider = selectedProvider ?? availability?.provider ?? "zoho";
+  // All providers (enabled + disabled/not-connected) — show all in selector
+  const allProviders = availability?.providers ?? [];
+  const enabledProviders = allProviders.filter((p) => p.enabled);
+  const multiProvider = allProviders.length > 1;
+  // Active provider: user selection (must be enabled) → first enabled → backend default
+  const activeProvider =
+    (selectedProvider && enabledProviders.find((p) => p.id === selectedProvider)
+      ? selectedProvider
+      : null) ??
+    enabledProviders[0]?.id ??
+    availability?.provider ??
+    "zoho";
   const providerLabel = PROVIDER_LABEL[activeProvider] ?? activeProvider;
 
   async function pay(e: React.FormEvent) {
@@ -250,27 +260,64 @@ export default function CheckoutPage() {
             </div>
           </section>
 
-          {/* Payment method selector — only shown when multiple providers are enabled */}
+          {/* Payment method selector — shown when there are multiple providers (even partially configured) */}
           {multiProvider && (
             <section className="border border-neutral-200 p-6">
               <h3 className="font-semibold mb-4">Payment method</h3>
               <div className="space-y-3">
-                {availableProviders.map((p) => (
-                  <label key={p.id} className="flex items-center gap-3 cursor-pointer group">
+                {allProviders.map((p) => (
+                  <label
+                    key={p.id}
+                    className={`flex items-center gap-3 ${p.enabled ? "cursor-pointer" : "cursor-not-allowed opacity-50"}`}
+                  >
                     <input
                       type="radio"
                       name="provider"
                       value={p.id}
-                      checked={selectedProvider === p.id}
-                      onChange={() => setSelectedProvider(p.id)}
+                      disabled={!p.enabled}
+                      checked={activeProvider === p.id}
+                      onChange={() => p.enabled && setSelectedProvider(p.id)}
                       className="accent-black w-4 h-4"
                     />
-                    <span className="text-sm font-medium group-hover:text-black">
+                    <span className="text-sm font-medium flex items-center gap-2">
                       {PROVIDER_LABEL[p.id] ?? p.label}
+                      {!p.enabled && (
+                        <span className="text-[10px] font-semibold tracking-widest uppercase bg-amber-100 text-amber-700 border border-amber-300 px-2 py-0.5 rounded">
+                          {p.reason === "KYC_PENDING" ? "KYC Pending" : "Not connected"}
+                        </span>
+                      )}
                     </span>
                   </label>
                 ))}
               </div>
+              {allProviders.some((p) => !p.enabled && p.id === "zoho" && p.reason === "KYC_PENDING") && (
+                <p className="mt-4 text-xs text-neutral-500">
+                  Zoho Payments requires KYC verification before it can accept payments.{" "}
+                  <a
+                    href="https://payments.zoho.in"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-neutral-700 hover:text-black"
+                  >
+                    Complete verification at payments.zoho.in
+                  </a>
+                  .
+                </p>
+              )}
+              {allProviders.some((p) => !p.enabled && p.id === "zoho" && p.reason === "NOT_CONNECTED") && (
+                <p className="mt-4 text-xs text-neutral-500">
+                  To enable Zoho Payments, complete OAuth setup via{" "}
+                  <a
+                    href="http://localhost:5050/api/zoho/dev-connect"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline text-neutral-700 hover:text-black"
+                  >
+                    Zoho Dev Connect
+                  </a>
+                  .
+                </p>
+              )}
             </section>
           )}
 
