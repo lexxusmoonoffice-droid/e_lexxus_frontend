@@ -7,6 +7,15 @@
 
 import type { ApiBrand, ApiBundle, ApiCategory, ApiProduct } from './types';
 import type { Bundle, Product } from './data';
+import { API_URL } from './fetcher';
+
+function fixImageUrl(url: string | null | undefined): string {
+  if (!url) return '';
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\//.test(url)) {
+    return API_URL.replace(/\/api$/, '') + url.replace(/^https?:\/\/[^/]+/, '');
+  }
+  return url;
+}
 
 function nameOf(ref?: ApiBrand | ApiCategory | string | null): string {
   if (!ref) return '';
@@ -29,9 +38,9 @@ export function toLegacyProduct(p: ApiProduct): Product {
     brand: nameOf(p.brand),
     category: nameOf(p.category),
     price: p.price,
-    image: p.thumbnail || p.images?.[0] || '',
-    hoverImage: p.hoverImage || undefined,
-    images: p.images || [],
+    image: fixImageUrl(p.thumbnail || p.images?.[0]),
+    hoverImage: fixImageUrl(p.hoverImage) || undefined,
+    images: (p.images || []).map(fixImageUrl),
     views: p.views || 0,
     likes: p.likes || 0,
     date: formatDate(p.publishedAt || p.createdAt),
