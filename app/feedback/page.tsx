@@ -1,18 +1,94 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Mail, Phone, MapPin, Clock } from "lucide-react";
+import { apiGet } from "@/lib/api";
+import { useSubmitInquiry } from "@/lib/hooks";
+import toast from "react-hot-toast";
+
+interface ContactSettings {
+  email: string;
+  phone: string;
+  address: string;
+  hours: string;
+  locationLabel: string;
+  locationImage: string;
+  responseTimes: {
+    general: string;
+    technical: string;
+    billing: string;
+    partnerships: string;
+  };
+}
 
 const topics = ["General Inquiry", "Technical Support", "Billing & Refunds", "Partnership", "Press & Media", "Other"];
 
-const contactInfo = [
-  { icon: Mail, label: "Email", value: "hello@lexxus.com" },
-  { icon: Phone, label: "Phone", value: "+1 (800) 123-4567" },
-  { icon: MapPin, label: "Address", value: "340 Pine Street, New York, NY 10001" },
-  { icon: Clock, label: "Hours", value: "Mon–Fri, 9am–6pm EST" },
-];
-
 export default function FeedbackPage() {
   const [sent, setSent] = useState(false);
+  const [contact, setContact] = useState<ContactSettings | null>(null);
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [email, setEmail] = useState("");
+  const [topic, setTopic] = useState("General Inquiry");
+  const [subject, setSubject] = useState("");
+  const [message, setMessage] = useState("");
+
+  const submitM = useSubmitInquiry();
+
+  useEffect(() => {
+    apiGet<{ contact?: ContactSettings }>("/settings/public")
+      .then((res) => {
+        if (res.contact) setContact(res.contact);
+      })
+      .catch(() => {});
+  }, []);
+
+  const contactEmail = contact?.email || "hello@lexxus.com";
+  const phone = contact?.phone || "+1 (800) 123-4567";
+  const address = contact?.address || "340 Pine Street, New York, NY 10001";
+  const hours = contact?.hours || "Mon–Fri, 9am–6pm EST";
+  const locationLabel = contact?.locationLabel || "New York, NY";
+  const locationImage = contact?.locationImage || "https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80";
+
+  const rtGeneral = contact?.responseTimes?.general || "24–48 hrs";
+  const rtTechnical = contact?.responseTimes?.technical || "24 hrs";
+  const rtBilling = contact?.responseTimes?.billing || "4–8 hrs";
+  const rtPartnerships = contact?.responseTimes?.partnerships || "2–3 days";
+
+  const contactInfo = [
+    { icon: Mail, label: "Email", value: contactEmail },
+    { icon: Phone, label: "Phone", value: phone },
+    { icon: MapPin, label: "Address", value: address },
+    { icon: Clock, label: "Hours", value: hours },
+  ];
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await submitM.mutateAsync({
+        firstName,
+        lastName,
+        email,
+        topic,
+        subject,
+        message,
+      });
+      toast.success("Thank you! Message sent successfully.");
+      setSent(true);
+    } catch (err) {
+      toast.error("Failed to send message. Please try again.");
+    }
+  };
+
+  const handleReset = () => {
+    setFirstName("");
+    setLastName("");
+    setEmail("");
+    setTopic("General Inquiry");
+    setSubject("");
+    setMessage("");
+    setSent(false);
+  };
 
   return (
     <div className="bg-white">
@@ -52,13 +128,13 @@ export default function FeedbackPage() {
               </div>
               <h3 className="text-2xl font-bold">Message Sent</h3>
               <p className="text-neutral-500 mt-3 leading-relaxed">Thank you for reaching out. We'll get back to you within 24 hours.</p>
-              <button onClick={() => setSent(false)} className="mt-8 border border-neutral-300 px-8 py-3 text-sm tracking-widest uppercase hover:border-black transition">
+              <button onClick={handleReset} className="mt-8 border border-neutral-300 px-8 py-3 text-sm tracking-widest uppercase hover:border-black transition">
                 Send Another
               </button>
             </div>
           ) : (
             <form
-              onSubmit={(e) => { e.preventDefault(); setSent(true); }}
+              onSubmit={handleSubmit}
               className="space-y-6"
             >
               <div className="grid md:grid-cols-2 gap-6">
@@ -68,6 +144,8 @@ export default function FeedbackPage() {
                     required
                     className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition"
                     placeholder="Aleksander"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
                   />
                 </div>
                 <div>
@@ -76,6 +154,8 @@ export default function FeedbackPage() {
                     required
                     className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition"
                     placeholder="Voss"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
                   />
                 </div>
               </div>
@@ -86,12 +166,18 @@ export default function FeedbackPage() {
                   required
                   className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition"
                   placeholder="hello@studio.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
               <div>
                 <label className="block text-xs tracking-widest uppercase text-neutral-500 mb-2">Topic</label>
-                <select className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition bg-white appearance-none">
-                  {topics.map((t) => <option key={t}>{t}</option>)}
+                <select 
+                  className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition bg-white appearance-none"
+                  value={topic}
+                  onChange={(e) => setTopic(e.target.value)}
+                >
+                  {topics.map((t) => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div>
@@ -100,6 +186,8 @@ export default function FeedbackPage() {
                   required
                   className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition"
                   placeholder="How can we help?"
+                  value={subject}
+                  onChange={(e) => setSubject(e.target.value)}
                 />
               </div>
               <div>
@@ -109,13 +197,16 @@ export default function FeedbackPage() {
                   rows={6}
                   className="w-full border border-neutral-200 px-4 py-3.5 text-sm outline-none focus:border-black transition resize-none"
                   placeholder="Tell us more..."
+                  value={message}
+                  onChange={(e) => setMessage(e.target.value)}
                 />
               </div>
               <button
                 type="submit"
-                className="w-full bg-black text-white py-4 text-sm tracking-widest uppercase hover:bg-neutral-800 transition"
+                disabled={submitM.isPending}
+                className="w-full bg-black text-white py-4 text-sm tracking-widest uppercase hover:bg-neutral-800 transition disabled:opacity-50"
               >
-                Send Message
+                {submitM.isPending ? "Sending..." : "Send Message"}
               </button>
             </form>
           )}
@@ -144,13 +235,13 @@ export default function FeedbackPage() {
           {/* Map placeholder */}
           <div className="relative overflow-hidden h-64 bg-neutral-100">
             <img
-              src="https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=800&q=80"
-              alt="New York"
+              src={locationImage}
+              alt={locationLabel}
               className="w-full h-full object-cover grayscale"
             />
             <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
-              <div className="bg-white px-6 py-3 text-xs tracking-widest uppercase font-semibold">
-                New York, NY
+              <div className="bg-white px-6 py-3 text-xs tracking-widest uppercase font-semibold text-center">
+                {locationLabel}
               </div>
             </div>
           </div>
@@ -159,10 +250,10 @@ export default function FeedbackPage() {
           <div className="bg-neutral-950 text-white p-8">
             <h4 className="font-semibold tracking-wide">Response Times</h4>
             <div className="mt-5 space-y-3 text-sm text-neutral-400">
-              <div className="flex justify-between"><span>General inquiries</span><span className="text-white">24–48 hrs</span></div>
-              <div className="flex justify-between"><span>Technical support</span><span className="text-white">24 hrs</span></div>
-              <div className="flex justify-between"><span>Billing issues</span><span className="text-white">4–8 hrs</span></div>
-              <div className="flex justify-between"><span>Partnerships</span><span className="text-white">2–3 days</span></div>
+              <div className="flex justify-between"><span>General inquiries</span><span className="text-white">{rtGeneral}</span></div>
+              <div className="flex justify-between"><span>Technical support</span><span className="text-white">{rtTechnical}</span></div>
+              <div className="flex justify-between"><span>Billing issues</span><span className="text-white">{rtBilling}</span></div>
+              <div className="flex justify-between"><span>Partnerships</span><span className="text-white">{rtPartnerships}</span></div>
             </div>
           </div>
         </div>

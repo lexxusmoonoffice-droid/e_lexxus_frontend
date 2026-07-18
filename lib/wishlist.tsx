@@ -19,12 +19,14 @@ type WishlistCtx = {
   items: Product[];
   toggle: (p: Product) => void;
   has: (id: string) => boolean;
+  remove: (id: string) => void;
 };
 
 const Ctx = createContext<WishlistCtx>({
   items: [],
   toggle: () => {},
   has: () => false,
+  remove: () => {},
 });
 
 async function fetchServerWishlist(): Promise<Product[]> {
@@ -75,9 +77,26 @@ export function WishlistProvider({ children }: { children: ReactNode }) {
     }
   }, [user, items]);
 
+  const remove = useCallback(async (id: string) => {
+    if (!user) return;
+    const isWishlisted = items.some((i) => i.id === id);
+    if (!isWishlisted) return;
+    // Optimistic update
+    setItems((prev) => prev.filter((i) => i.id !== id));
+    try {
+      await apiDelete(`/wishlist/product/${id}`);
+      const fresh = await fetchServerWishlist();
+      setItems(fresh);
+    } catch {
+      // Revert on failure
+      const found = items.find((i) => i.id === id);
+      if (found) setItems((prev) => [...prev, found]);
+    }
+  }, [user, items]);
+
   const has = useCallback((id: string) => items.some((i) => i.id === id), [items]);
 
-  return <Ctx.Provider value={{ items, toggle, has }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ items, toggle, has, remove }}>{children}</Ctx.Provider>;
 }
 
 export function useWishlist() {

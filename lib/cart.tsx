@@ -10,6 +10,7 @@ import {
 } from "react";
 import { Product } from "./data";
 import { useAuth } from "./auth";
+import { useWishlist } from "./wishlist";
 import { apiPost, apiDelete, apiGet } from "./api";
 import type { ApiProduct } from "./types";
 import { toLegacyProduct } from "./adapters";
@@ -45,6 +46,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [syncing, setSyncing] = useState(false);
   const { user } = useAuth();
+  const { remove: removeFromWishlist } = useWishlist();
 
   // Load from backend whenever user changes (login / logout)
   useEffect(() => {
@@ -63,12 +65,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
 
   const add = useCallback(async (p: Product) => {
     if (!user) return;
+
+    // Remove from wishlist if present
+    removeFromWishlist(p.id);
+
+    const existing = items.find((i) => i.id === p.id);
+    if (existing) {
+      toast.success(`${p.name} is already in your cart`);
+      return;
+    }
+
     // Optimistic update
-    setItems((prev) => {
-      const existing = prev.find((i) => i.id === p.id);
-      if (existing) return prev.map((i) => i.id === p.id ? { ...i, qty: i.qty + 1 } : i);
-      return [...prev, { ...p, qty: 1 }];
-    });
+    setItems((prev) => [...prev, { ...p, qty: 1 }]);
     try {
       await apiPost("/cart/items", { productId: p.id, qty: 1 });
       const fresh = await fetchServerCart();
@@ -76,15 +84,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
       toast.success(`${p.name} added to cart`);
     } catch {
       // Revert on failure
-      setItems((prev) => {
-        const existing = prev.find((i) => i.id === p.id);
-        if (!existing) return prev;
-        if (existing.qty === 1) return prev.filter((i) => i.id !== p.id);
-        return prev.map((i) => i.id === p.id ? { ...i, qty: i.qty - 1 } : i);
-      });
+      setItems((prev) => prev.filter((i) => i.id !== p.id));
       toast.error("Failed to add to cart");
     }
-  }, [user]);
+  }, [user, items, removeFromWishlist]);
 
   const remove = useCallback(async (id: string) => {
     if (!user) return;

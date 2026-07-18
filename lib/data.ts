@@ -15,8 +15,9 @@ export type Product = {
   style?: string;
   color?: string;
   description: string;
-  dimensions?: { w: number; l: number; h: number };
+    dimensions?: { w: number; l: number; h: number };
   fileSizeMb: number;
+  formats?: string[];
 };
 
 export const products: Product[] = [

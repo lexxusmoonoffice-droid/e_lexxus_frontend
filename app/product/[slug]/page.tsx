@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import type { Metadata } from "next";
-import { Share2, Flag } from "lucide-react";
 import ProductCard from "@/components/ProductCard";
 import BuyBox from "./BuyBox";
 import Reviews from "./Reviews";
@@ -9,6 +8,8 @@ import Gallery from "./Gallery";
 import { serverGetOrNull } from "@/lib/fetcher";
 import { toLegacyProduct } from "@/lib/adapters";
 import Price from "@/components/Price";
+import BackButton from "@/components/BackButton";
+import ShareButton from "./ShareButton";
 import type { ApiProduct } from "@/lib/types";
 
 export const revalidate = 300; // 5 min
@@ -40,13 +41,37 @@ export default async function ProductPage({ params }: { params: { slug: string }
   const d = await fetchDetail(params.slug);
   if (!d) return notFound();
   const p = toLegacyProduct(d.product);
-  const related = d.related.map(toLegacyProduct);
   const images = [...p.images.filter(Boolean), ...(p.image ? [p.image] : [])].filter(
     (v, i, a) => a.indexOf(v) === i
   );
 
+  // Load all products in the same subcategory or category
+  const categoryObj = d.product.category;
+  const categorySlug = typeof categoryObj === "object" && categoryObj ? categoryObj.slug : "";
+  const subCategoryObj = d.product.subCategory;
+  const subCategorySlug = typeof subCategoryObj === "object" && subCategoryObj ? subCategoryObj.slug : "";
+
+  let relatedProductsRaw: { data: ApiProduct[] } = { data: [] };
+  try {
+    const queryParams = new URLSearchParams();
+    if (subCategorySlug) {
+      queryParams.set("subCategory", subCategorySlug);
+    } else if (categorySlug) {
+      queryParams.set("category", categorySlug);
+    }
+    queryParams.set("limit", "100");
+    relatedProductsRaw = await serverGetOrNull<{ data: ApiProduct[] }>(`/products?${queryParams.toString()}`, { tag: "products" }) || { data: [] };
+  } catch (err) {
+    console.error("Failed to load subcategory products:", err);
+  }
+
+  const related = relatedProductsRaw.data
+    .filter((rp) => rp.id !== d.product.id)
+    .map(toLegacyProduct);
+
   return (
-    <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
+      <BackButton />
       <div className="text-xs text-neutral-500 mb-6">
         lexxus.com / {p.category} / {p.name}
       </div>
@@ -56,14 +81,13 @@ export default async function ProductPage({ params }: { params: { slug: string }
           <Gallery images={images} alt={p.name} />
 
           <div className="mt-10">
-            <h1 className="text-2xl font-semibold">3D Model — {p.name}</h1>
+                        <h1 className="text-2xl font-semibold break-all">3D Model — {p.name}</h1>
             <table className="mt-6 text-sm">
               <tbody>
-                <Row k="Category" v={p.category} />
+                                <Row k="Category" v={p.category} />
                 {p.material && <Row k="Material" v={p.material} />}
                 {p.style && <Row k="Style" v={p.style} />}
                 {p.color && <Row k="Color" v={p.color} />}
-                <Row k="Brand" v={p.brand} />
                 <Row k="File size" v={`${p.fileSizeMb} Mb`} />
               </tbody>
             </table>
@@ -88,12 +112,11 @@ export default async function ProductPage({ params }: { params: { slug: string }
             <div className="border border-neutral-200 p-5">
               <div className="flex items-center justify-between">
                 <div className="text-lg font-bold tracking-widest">{p.brand.toUpperCase()}</div>
-                <div className="flex gap-2 text-neutral-500">
-                  <Share2 className="w-4 h-4" />
-                  <Flag className="w-4 h-4" />
+                <div className="flex items-center text-neutral-500">
+                  <ShareButton productName={p.name} />
                 </div>
               </div>
-              <div className="mt-4 font-semibold">{p.name}</div>
+                            <h1 className="mt-4 text-lg font-bold text-neutral-800 break-all">{p.name}</h1>
 
               <div className="mt-4 p-3 bg-emerald-50 border border-emerald-200 text-xs text-emerald-800">
                 {p.price === 0
@@ -135,11 +158,14 @@ export default async function ProductPage({ params }: { params: { slug: string }
       />
 
       {related.length > 0 && (
-        <section className="mt-20">
-          <h2 className="text-2xl font-semibold text-center mb-8">You may also like</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-            {related.slice(0, 4).map((r) => (
-              <ProductCard key={r.id} p={r} />
+        <section className="mt-20 border-t border-neutral-100 pt-12">
+          <div className="mb-8">
+            <span className="text-xs font-bold uppercase tracking-widest text-neutral-400">Related Assets</span>
+            <h2 className="text-2xl font-bold text-neutral-800 mt-1">You may also like</h2>
+          </div>
+          <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-5 space-y-5">
+            {related.map((r) => (
+              <ProductCard key={r.id} p={r} variant="gallery" />
             ))}
           </div>
         </section>

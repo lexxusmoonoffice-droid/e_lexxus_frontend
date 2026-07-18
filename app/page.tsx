@@ -97,66 +97,79 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <section className="max-w-[1400px] mx-auto px-4 lg:px-8 py-20">
-        <div className="flex items-end justify-between mb-10">
-          <div>
-            <span className="text-xs tracking-[0.3em] uppercase text-neutral-400">Browse by Type</span>
-            <h2 className="text-4xl font-bold mt-3">Explore the Collection</h2>
+      <section className="py-20 border-b border-neutral-100 overflow-hidden bg-neutral-50/50">
+        <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mb-8">
+          <span className="text-xs tracking-[0.3em] uppercase text-neutral-400 font-semibold">Browse by Type</span>
+          <h2 className="text-4xl font-bold mt-3">Explore the Collection</h2>
+        </div>
+        
+        {/* Collection Marquee (Slow LTR) */}
+        <div className="marquee-container relative w-full overflow-x-hidden flex py-2">
+          <div className="animate-marquee-slow-ltr flex">
+            {[...(collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS), ...(collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS), ...(collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS), ...(collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS)].map((c, i) => (
+              <Link key={i} href={c.href} className="group flex-shrink-0 flex items-center gap-4 bg-white border border-neutral-200/80 pl-4 pr-8 py-3 rounded-full hover:border-black hover:shadow-sm transition select-none mx-3 min-w-[220px]">
+                <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-neutral-100">
+                  <img src={c.img} alt="" className="w-full h-full object-cover group-hover:scale-110 transition duration-500" />
+                </div>
+                <div>
+                  <div className="font-bold text-neutral-800 text-xs truncate max-w-[120px]">{c.name}</div>
+                  <div className="text-[9px] text-neutral-400 font-bold tracking-wider uppercase mt-0.5">{c.count}</div>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
-        <CategoryCarousel cards={collectionCards.length > 0 ? collectionCards : FALLBACK_COLLECTIONS} />
       </section>
 
       {featured.length > 0 && (
-        <section className="max-w-[1400px] mx-auto px-4 lg:px-8 py-20">
-          <div className="flex items-end justify-between mb-10">
+        <section className="py-20 border-b border-neutral-100 overflow-hidden bg-white">
+          <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mb-8 flex justify-between items-end">
             <div>
-              <span className="text-xs tracking-[0.3em] uppercase text-neutral-400">Hand-Picked</span>
+              <span className="text-xs tracking-[0.3em] uppercase text-neutral-400 font-semibold">Hand-Picked</span>
               <h2 className="text-4xl font-bold mt-3">Featured Assets</h2>
             </div>
             <Link href="/c/models" className="text-xs tracking-widest uppercase border-b border-black pb-0.5 hover:opacity-60 transition">
               View All →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {featured.map((p) => <ProductCard key={p.id} p={p} />)}
+
+          {/* Featured Marquee (Standard RTL) */}
+          <div className="marquee-container relative w-full overflow-x-hidden flex py-4">
+            <div className="animate-marquee-rtl flex">
+              {[...featured, ...featured, ...featured, ...featured].map((p, i) => (
+                <div key={i} className="flex-shrink-0 w-64 mx-4 hover:-translate-y-1 transition duration-300">
+                  <ProductCard p={p} />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}
 
       {trending.length > 0 && (
-        <section className="bg-neutral-950 text-white py-20">
-          <div className="max-w-[1400px] mx-auto px-4 lg:px-8">
-            <div className="flex items-end justify-between mb-10">
-              <div>
-                <span className="text-xs tracking-[0.3em] uppercase text-neutral-400">Most Downloaded</span>
-                <h2 className="text-4xl font-bold mt-3">Trending Now</h2>
-              </div>
-              <Link href="/c/models" className="text-xs tracking-widest uppercase border-b border-white pb-0.5 hover:opacity-60 transition">
-                View All →
-              </Link>
+        <section className="bg-neutral-950 text-white py-20 overflow-hidden">
+          <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mb-8 flex justify-between items-end">
+            <div>
+              <span className="text-xs tracking-[0.3em] uppercase text-neutral-400 font-semibold">Most Downloaded</span>
+              <h2 className="text-4xl font-bold mt-3">Trending Now</h2>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-5">
-              {trending.map((p) => (
-                <Link key={p.id} href={`/product/${p.slug}`} className="group">
-                  <div className="relative aspect-square overflow-hidden bg-neutral-800">
-                    <img
-                      src={p.image}
-                      alt={p.name}
-                      className={`w-full h-full object-cover transition duration-500 opacity-80 ${p.hoverImage ? "group-hover:opacity-0" : "group-hover:scale-105 group-hover:opacity-100"}`}
-                    />
-                    {p.hoverImage && (
-                      <img
-                        src={p.hoverImage}
-                        alt={p.name}
-                        className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition duration-500"
-                      />
-                    )}
+            <Link href="/c/models" className="text-xs tracking-widest uppercase border-b border-white pb-0.5 hover:opacity-60 transition">
+              View All →
+            </Link>
+          </div>
+
+          {/* Trending Marquee (Fast RTL with Premium Dark Glass Cards) */}
+          <div className="marquee-container relative w-full overflow-x-hidden flex py-4">
+            <div className="animate-marquee-fast-rtl flex">
+              {[...trending, ...trending, ...trending, ...trending].map((p, i) => (
+                <Link key={i} href={`/product/${p.slug}`} className="group flex-shrink-0 w-64 mx-4 bg-neutral-900/40 border border-neutral-850 hover:border-neutral-700 rounded-xl overflow-hidden hover:shadow-lg transition duration-300">
+                  <div className="relative aspect-[4/3] overflow-hidden bg-neutral-900">
+                    <img src={p.image} className="w-full h-full object-cover transition duration-500 opacity-80 group-hover:opacity-100 group-hover:scale-105" />
                   </div>
-                  <div className="mt-4">
-                    <div className="text-xs text-neutral-500 tracking-wide">{p.brand}</div>
-                    <div className="font-semibold mt-1 group-hover:opacity-70 transition">{p.name}</div>
-                    <div className="text-emerald-400 text-sm font-semibold mt-1">
+                  <div className="p-4">
+                    <div className="text-[9px] text-neutral-500 uppercase tracking-widest font-bold">{p.brand}</div>
+                    <h3 className="font-bold text-white text-xs mt-1 truncate">{p.name}</h3>
+                    <div className="text-emerald-400 text-xs font-bold mt-2">
                       <Price inr={p.price} freeLabel="Free" />
                     </div>
                   </div>
@@ -168,18 +181,26 @@ export default async function HomePage() {
       )}
 
       {newArrivals.length > 0 && (
-        <section className="max-w-[1400px] mx-auto px-4 lg:px-8 py-20">
-          <div className="flex items-end justify-between mb-10">
+        <section className="py-20 border-b border-neutral-100 overflow-hidden bg-white">
+          <div className="max-w-[1400px] mx-auto px-4 lg:px-8 mb-8 flex justify-between items-end">
             <div>
-              <span className="text-xs tracking-[0.3em] uppercase text-neutral-400">Just Added</span>
+              <span className="text-xs tracking-[0.3em] uppercase text-neutral-400 font-semibold">Just Added</span>
               <h2 className="text-4xl font-bold mt-3">New Arrivals</h2>
             </div>
             <Link href="/c/models" className="text-xs tracking-widest uppercase border-b border-black pb-0.5 hover:opacity-60 transition">
               View All →
             </Link>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {newArrivals.map((p) => <ProductCard key={p.id} p={p} />)}
+
+          {/* New Arrivals Marquee (Slow LTR) */}
+          <div className="marquee-container relative w-full overflow-x-hidden flex py-4">
+            <div className="animate-marquee-slow-ltr flex">
+              {[...newArrivals, ...newArrivals, ...newArrivals, ...newArrivals].map((p, i) => (
+                <div key={i} className="flex-shrink-0 w-64 mx-4 hover:-translate-y-1 transition duration-300">
+                  <ProductCard p={p} />
+                </div>
+              ))}
+            </div>
           </div>
         </section>
       )}

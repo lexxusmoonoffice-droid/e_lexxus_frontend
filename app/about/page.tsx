@@ -22,13 +22,6 @@ const values = [
   },
 ];
 
-const team = [
-  { name: "Aleksander Voss", role: "Founder & CEO", img: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=600&q=80" },
-  { name: "Mara Fontaine", role: "Head of Curation", img: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=600&q=80" },
-  { name: "Jin Park", role: "Lead Engineer", img: "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=600&q=80" },
-  { name: "Sofia Reyes", role: "Creative Director", img: "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=600&q=80" },
-];
-
 const milestones = [
   { year: "2022", event: "Lexxus concept born from a frustration with low-quality 3D marketplaces." },
   { year: "2023", event: "Private beta launched with 12 founding brands and 200 curated assets." },
@@ -133,36 +126,6 @@ export default function AboutPage() {
           className="w-full h-full object-cover"
         />
       </div>
-
-      {/* Team */}
-      <section className="max-w-[1400px] mx-auto px-4 lg:px-8 py-28">
-        <div className="flex items-end justify-between mb-16">
-          <div>
-            <span className="text-xs tracking-[0.3em] uppercase text-neutral-400">The People</span>
-            <h2 className="text-5xl font-bold mt-4">Meet the Team</h2>
-          </div>
-          <p className="hidden md:block text-neutral-500 max-w-xs text-sm leading-relaxed text-right">
-            A small, focused team of designers, engineers, and curators obsessed with quality.
-          </p>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-          {team.map((t) => (
-            <div key={t.name} className="group">
-              <div className="aspect-[3/4] overflow-hidden bg-neutral-100">
-                <img
-                  src={t.img}
-                  alt={t.name}
-                  className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition duration-700"
-                />
-              </div>
-              <div className="mt-5">
-                <div className="font-semibold tracking-wide">{t.name}</div>
-                <div className="text-xs text-neutral-400 mt-1 tracking-widest uppercase">{t.role}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* Partners */}
       <section className="border-t border-b border-neutral-200 py-16">

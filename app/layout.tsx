@@ -17,6 +17,11 @@ export const metadata = {
   description:
     "Buy premium 3D models, scenes, textures and digital assets from world-class brands.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"),
+  icons: {
+    icon: "/lexxus logo.webp",
+    shortcut: "/lexxus logo.webp",
+    apple: "/lexxus logo.webp",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -26,15 +31,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <QueryProvider>
           <AuthProvider>
             <CurrencyProvider>
-              <CartProvider>
-                <WishlistProvider>
+              <WishlistProvider>
+                <CartProvider>
                   <SentryInit />
                   <Header />
                   <main className="min-h-screen">{children}</main>
                   <Footer />
                   <Toaster position="bottom-right" toastOptions={{ style: { fontSize: 13 } }} />
-                </WishlistProvider>
-              </CartProvider>
+                </CartProvider>
+              </WishlistProvider>
             </CurrencyProvider>
           </AuthProvider>
         </QueryProvider>

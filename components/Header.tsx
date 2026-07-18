@@ -7,7 +7,7 @@ import Logo from "./Logo";
 import { useCart } from "@/lib/cart";
 import { useWishlist } from "@/lib/wishlist";
 import { useAuth } from "@/lib/auth";
-import { useCategoriesWithPreviews, useSearchSuggestions } from "@/lib/hooks";
+import { useCategoriesWithPreviews, useSearchSuggestions, useProduct } from "@/lib/hooks";
 import CartDrawer from "./CartDrawer";
 import WishlistDrawer from "./WishlistDrawer";
 import type { ApiCategory, ApiProductPreview } from "@/lib/types";
@@ -36,6 +36,16 @@ export default function Header() {
   const { data: categoriesData } = useCategoriesWithPreviews();
   const router = useRouter();
   const pathname = usePathname();
+
+  // Highlight category in header when viewing a product detail page
+  const isProductPage = pathname?.startsWith("/product/");
+  const productSlug = isProductPage ? pathname.replace("/product/", "").split("/")[0] : undefined;
+  const { data: productDetail } = useProduct(productSlug);
+  const activeProductCategorySlug = (() => {
+    if (!productDetail?.product?.category) return null;
+    const cat = productDetail.product.category;
+    return typeof cat === "object" && cat ? cat.slug : cat;
+  })();
 
   const debouncedQuery = useDebounce(query, 300);
   const { data: suggestData, isFetching: suggestLoading } = useSearchSuggestions(debouncedQuery);
@@ -189,7 +199,30 @@ export default function Header() {
         <nav className="hidden md:block border-t border-neutral-200">
           <ul className="max-w-[1400px] mx-auto px-4 lg:px-8 flex gap-7 text-sm py-3">
             {topCategories.map((cat) => {
-              const active = pathname === `/c/${cat.slug}` || pathname.startsWith(`/c/${cat.slug}/`);
+              const categoryObj = productDetail?.product?.category;
+              const subCategoryObj = productDetail?.product?.subCategory;
+
+              // Direct category slug match
+              const isDirectSlugMatch =
+                typeof categoryObj === "object" && categoryObj && categoryObj.slug === cat.slug;
+
+              // Direct category ID match
+              const isDirectIdMatch =
+                categoryObj &&
+                (typeof categoryObj === "string"
+                  ? categoryObj === cat.id
+                  : categoryObj.id === cat.id);
+
+              // Parent ID match (if category parent matches cat.id or subcategory parent matches cat.id)
+              const parentId = typeof categoryObj === "object" && categoryObj ? categoryObj.parent : null;
+              const subParentId = typeof subCategoryObj === "object" && subCategoryObj ? subCategoryObj.parent : null;
+              const isParentIdMatch = parentId === cat.id || subParentId === cat.id;
+
+              const active =
+                pathname === `/c/${cat.slug}` ||
+                pathname.startsWith(`/c/${cat.slug}/`) ||
+                (isProductPage && (isDirectSlugMatch || isDirectIdMatch || isParentIdMatch));
+
               return (
                 <MegaMenuItem key={cat.id} cat={cat} active={active} />
               );

@@ -16,9 +16,11 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import ProductCard from "@/components/ProductCard";
+import CategoryBannerSlider from "@/components/CategoryBannerSlider";
 import { serverGet, serverGetOrNull } from "@/lib/fetcher";
 import { toLegacyProduct } from "@/lib/adapters";
 import CategorySearch from "./CategorySearch";
+import Pagination from "@/components/Pagination";
 import type { ApiCategory, ApiProduct, Paginated } from "@/lib/types";
 
 export const revalidate = 300;
@@ -67,17 +69,17 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const { category, children } = detail;
   const query = searchParams?.q || "";
   const selectedSub = searchParams?.sub || "";
+  const currentPage = parseInt(searchParams?.page || "1", 10) || 1;
+  const limit = 48;
 
   let productsRes: Paginated<ApiProduct>;
   if (selectedSub) {
     // Use subCategory param so the backend can match both:
     //   - old products: category = subcatId (direct)
     //   - new products: subCategory = subcatId, category = parentId
-    productsRes = await fetchProducts({ subCategory: selectedSub, q: query, limit: 48 });
-  } else if (query) {
-    productsRes = await fetchProducts({ category: category.slug, q: query, limit: 48 });
+    productsRes = await fetchProducts({ subCategory: selectedSub, q: query, page: currentPage, limit });
   } else {
-    productsRes = detail.products;
+    productsRes = await fetchProducts({ category: category.slug, q: query, page: currentPage, limit });
   }
 
   const products = productsRes.data.map(toLegacyProduct);
@@ -85,28 +87,19 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   const hasChildren = (children?.length || 0) > 0;
   const activeSub = children?.find((c) => c.slug === selectedSub);
 
-  return (
+    return (
     <div>
-      {/* Category banner (shown only when there's a category image) */}
-      {category.image && (
-        <div className="relative h-48 md:h-64 overflow-hidden bg-neutral-100">
-          <img
-            src={category.image}
-            alt={category.name}
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-          <div className="absolute bottom-0 left-0 px-4 lg:px-8 pb-6 max-w-[1400px] mx-auto w-full">
-            <h1 className="text-3xl font-semibold text-white">{category.name}</h1>
-          </div>
-        </div>
-      )}
+            <CategoryBannerSlider
+        slug={category.slug}
+        categoryName={category.name}
+        initialBanners={category.banners}
+      />
 
       <div className="max-w-[1400px] mx-auto px-4 lg:px-8 py-8">
         {/* Header row */}
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-6">
           <div>
-            <div className="text-xs text-neutral-500">
+            <div className="text-xs text-neutral-400 font-bold uppercase tracking-wider">
               Lexxus / {category.name}
               {activeSub && (
                 <>
@@ -115,16 +108,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                 </>
               )}
             </div>
-            {!category.image && (
-              <h1 className="text-3xl font-semibold mt-1">
-                {query ? `Results for "${query}"` : category.name}
-              </h1>
-            )}
-            {query && category.image && (
-              <p className="text-lg font-medium mt-1">Results for &ldquo;{query}&rdquo;</p>
-            )}
-            <p className="text-sm text-neutral-500 mt-1">
-              {productsRes.total} product{productsRes.total !== 1 ? "s" : ""}
+            <h1 className="text-2xl font-bold mt-1 text-neutral-800">
+              {query ? `Results for "${query}"` : category.name}
+            </h1>
+            <p className="text-xs text-neutral-400 mt-0.5">
+              {productsRes.total} product{productsRes.total !== 1 ? "s" : ""} available
             </p>
           </div>
 
@@ -156,11 +144,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
           </div>
         )}
 
-        {/* Product grid */}
+        {/* Product masonry gallery grid */}
         {products.length === 0 ? (
-          <div className="text-center py-24 text-neutral-400">
-            <p className="text-lg font-medium">No products found</p>
-            <p className="text-sm mt-2">
+          <div className="text-center py-24 text-neutral-400 bg-white border border-neutral-100 rounded-xl p-8 shadow-sm">
+            <p className="text-sm font-semibold">No products found</p>
+            <p className="text-xs mt-1">
               {query
                 ? "Try a different search term."
                 : selectedSub
@@ -169,17 +157,25 @@ export default async function CategoryPage({ params, searchParams }: Props) {
             </p>
             <Link
               href={baseHref}
-              className="mt-6 inline-block border border-neutral-300 px-6 py-2 text-sm hover:border-black hover:text-black transition"
+              className="mt-6 inline-block bg-neutral-100 hover:bg-neutral-200 text-neutral-700 px-6 py-2 text-xs font-semibold rounded-lg transition"
             >
               Clear filters
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-            {products.map((p) => (
-              <ProductCard key={p.id} p={p} />
-            ))}
-          </div>
+          <>
+            <div className="columns-2 sm:columns-3 md:columns-4 lg:columns-5 gap-5 space-y-5">
+              {products.map((p) => (
+                <ProductCard key={p.id} p={p} variant="gallery" />
+              ))}
+            </div>
+            <Pagination
+              currentPage={productsRes.page}
+              totalPages={productsRes.pages}
+              baseHref={baseHref}
+              currentParams={{ q: query, sub: selectedSub }}
+            />
+          </>
         )}
       </div>
     </div>
