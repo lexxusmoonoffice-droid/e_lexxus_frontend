@@ -369,7 +369,6 @@ export default function CheckoutPage() {
                 <img src={i.image} alt={i.name} className="w-14 h-14 rounded object-cover" />
                 <div className="flex-1 text-sm min-w-0">
                   <div className="font-medium truncate">{i.name}</div>
-                  <div className="text-xs text-neutral-500">Qty {i.qty}</div>
                 </div>
                 <div className="text-sm font-semibold">{format(i.price * i.qty)}</div>
               </div>

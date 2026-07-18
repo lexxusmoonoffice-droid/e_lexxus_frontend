@@ -29,3 +29,45 @@ body { background: var(--background); color: var(--foreground); }
 .card {
   @apply bg-white border border-neutral-200 overflow-hidden hover:shadow-md transition;
 }
+
+/* Infinite Marquee Animations */
+@keyframes marquee-ltr {
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(0%); }
+}
+
+@keyframes marquee-rtl {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee-ltr {
+  display: flex;
+  width: max-content;
+  animation: marquee-ltr 35s linear infinite;
+}
+
+.animate-marquee-rtl {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 35s linear infinite;
+}
+
+.animate-marquee-fast-rtl {
+  display: flex;
+  width: max-content;
+  animation: marquee-rtl 25s linear infinite;
+}
+
+.animate-marquee-slow-ltr {
+  display: flex;
+  width: max-content;
+  animation: marquee-ltr 50s linear infinite;
+}
+
+.marquee-container:hover .animate-marquee-ltr,
+.marquee-container:hover .animate-marquee-rtl,
+.marquee-container:hover .animate-marquee-fast-rtl,
+.marquee-container:hover .animate-marquee-slow-ltr {
+  animation-play-state: paused;
+}

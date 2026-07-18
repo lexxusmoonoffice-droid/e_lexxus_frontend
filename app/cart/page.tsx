@@ -42,7 +42,6 @@ export default function CartPage() {
               <div className="flex-1">
                 <div className="font-semibold">{i.name}</div>
                 <div className="text-xs text-neutral-500">{i.brand} · {i.category}</div>
-                <div className="text-xs text-neutral-500 mt-1">Qty: {i.qty}</div>
               </div>
               <div className="flex flex-col items-end justify-between">
                 <button onClick={() => remove(i.id)} className="text-neutral-400 hover:text-red-500">

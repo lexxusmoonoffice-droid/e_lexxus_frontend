@@ -7,6 +7,7 @@ import toast from "react-hot-toast";
 import Logo from "@/components/Logo";
 import { useAuth } from "@/lib/auth";
 import { apiPost, apiError, setTokens } from "@/lib/api";
+import { Eye, EyeOff } from "lucide-react";
 import type { ApiUser } from "@/lib/types";
 
 function GoogleIcon() {
@@ -41,6 +42,7 @@ function LoginInner() {
   // Password login state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   // OTP state
   const [otpEmail, setOtpEmail] = useState("");
@@ -153,12 +155,21 @@ function LoginInner() {
             </label>
             <label className="block">
               <span className="text-xs text-neutral-600">Password</span>
-              <input
-                type="password" required minLength={8} value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                className="mt-1 w-full border border-neutral-300 rounded-lg px-3 py-2.5 text-sm outline-none focus:border-black"
-              />
+              <div className="relative mt-1">
+                <input
+                  type={showPassword ? "text" : "password"} required minLength={8} value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
+                  className="w-full border border-neutral-300 rounded-lg pl-3 pr-10 py-2.5 text-sm outline-none focus:border-black"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-neutral-400 hover:text-neutral-600 transition"
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
             </label>
             {error && <div className="text-xs text-rose-600">{error}</div>}
             <button type="submit" disabled={loading}

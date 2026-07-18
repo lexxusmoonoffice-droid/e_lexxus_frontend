@@ -41,7 +41,11 @@ export default function Reviews({ productId, slug, initialAvg, initialCount }: P
     return { avg: sum / reviews.length, count: reviews.length };
   }, [reviews, initialAvg, initialCount]);
 
-  const userAlreadyReviewed = !!(user && reviews.find((r) => r.user?.id === user.id));
+    const userAlreadyReviewed = !!(user && reviews.find((r) => r.user?.id === user.id));
+
+  if (!isLoading && reviews.length === 0) {
+    return null;
+  }
 
   return (
     <section className="mt-16 border-t border-neutral-200 pt-10">
@@ -54,35 +58,9 @@ export default function Reviews({ productId, slug, initialAvg, initialCount }: P
         </div>
       </div>
 
-      {!user ? (
-        <p className="text-sm text-neutral-500 mt-6">
-          <Link href="/login" className="underline">Sign in</Link> to leave a review — you&apos;ll need to have purchased this product first.
-        </p>
-      ) : userAlreadyReviewed ? (
-        <p className="text-xs text-neutral-500 mt-6">You&apos;ve already reviewed this product.</p>
-      ) : (
-        <ReviewForm onSubmit={async ({ rating, comment }) => {
-          try {
-            await post.mutateAsync({ rating, comment });
-            toast.success("Thanks for your review");
-          } catch (err) {
-            const msg = apiError(err, "Couldn't post review");
-            if (/NOT_PURCHASED/i.test(msg) || msg.includes("purchased")) {
-              toast.error("You need to have purchased this product to leave a review.");
-            } else if (/REVIEW_EXISTS/i.test(msg)) {
-              toast.error("You've already reviewed this product.");
-            } else {
-              toast.error(msg);
-            }
-          }
-        }} busy={post.isPending} />
-      )}
-
-      <div className="mt-10">
+      <div className="mt-6">
         {isLoading ? (
           <p className="text-sm text-neutral-400">Loading reviews…</p>
-        ) : reviews.length === 0 ? (
-          <p className="text-sm text-neutral-500">No reviews yet — be the first after you buy it.</p>
         ) : (
           <ul className="space-y-6">
             {reviews.map((r) => {

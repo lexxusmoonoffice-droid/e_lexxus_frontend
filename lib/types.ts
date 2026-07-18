@@ -30,6 +30,7 @@ export interface ApiCategory {
   productCount?: number;
   children?: ApiCategory[];
   previews?: ApiProductPreview[];
+  banners?: Array<{ img: string; title?: string; sub?: string; href?: string }>;
 }
 
 export interface ApiProduct {
@@ -37,8 +38,9 @@ export interface ApiProduct {
   slug: string;
   title: string;
   description: string;
-  brand?: ApiBrand | string | null;
+    brand?: ApiBrand | string | null;
   category?: ApiCategory | string;
+  subCategory?: ApiCategory | string;
   tags?: string[];
   price: number;
   currency?: string;
@@ -152,4 +154,12 @@ export interface ApiOrder {
   billing?: { name?: string; email?: string; country?: string };
   createdAt: string;
   payment?: { paidAt?: string };
+}
+
+export interface ApiSocialLink {
+  id: string;
+  platform: string;
+  url: string;
+  active: boolean;
+  order: number;
 }

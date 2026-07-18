@@ -2,38 +2,38 @@
 
 import Link from "next/link";
 import Logo from "./Logo";
-import { Linkedin, Facebook, Youtube, Instagram, Twitter } from "lucide-react";
+import { 
+  Linkedin, Facebook, Youtube, Instagram, Twitter, 
+  Github, MessageCircle, Globe 
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { apiGet } from "@/lib/api";
 import { useCategories } from "@/lib/hooks";
+import type { ApiSocialLink } from "@/lib/types";
 
-type SocialLinks = {
-  linkedin?: string;
-  facebook?: string;
-  youtube?: string;
-  instagram?: string;
-  twitter?: string;
-};
+function getSocialIcon(key: string) {
+  const k = key.toLowerCase();
+  if (k.includes("linkedin")) return Linkedin;
+  if (k.includes("facebook")) return Facebook;
+  if (k.includes("youtube")) return Youtube;
+  if (k.includes("instagram")) return Instagram;
+  if (k.includes("twitter") || k.includes("x.com")) return Twitter;
+  if (k.includes("github")) return Github;
+  if (k.includes("discord") || k.includes("whatsapp") || k.includes("slack")) return MessageCircle;
+  return Globe;
+}
 
-const SOCIAL_ICONS: { key: keyof SocialLinks; Icon: React.ElementType }[] = [
-  { key: "linkedin", Icon: Linkedin },
-  { key: "facebook", Icon: Facebook },
-  { key: "youtube", Icon: Youtube },
-  { key: "instagram", Icon: Instagram },
-  { key: "twitter", Icon: Twitter },
-];
+const DEFAULT_PLATFORMS = ["linkedin", "facebook", "youtube", "instagram", "twitter"];
 
 export default function Footer() {
-  const [social, setSocial] = useState<SocialLinks>({});
+  const [socialLinks, setSocialLinks] = useState<ApiSocialLink[]>([]);
   const { data: categoriesData } = useCategories();
 
   useEffect(() => {
-    apiGet<{ social?: SocialLinks }>("/settings/public")
-      .then((d) => { if (d.social) setSocial(d.social); })
+    apiGet<{ links: ApiSocialLink[] }>("/social-links")
+      .then((d) => { if (d.links) setSocialLinks(d.links); })
       .catch(() => {});
   }, []);
-
-  const activeLinks = SOCIAL_ICONS.filter(({ key }) => !!social[key]);
 
   // Top-level categories (getTree returns root-level items with children nested)
   const categoryLinks: [string, string][] = (categoriesData?.data || [])
@@ -49,24 +49,30 @@ export default function Footer() {
             bring your ideas to life easily with Lexxus.
           </p>
           <div className="flex gap-2 mt-5">
-            {activeLinks.length > 0
-              ? activeLinks.map(({ key, Icon }) => (
-                  <a
-                    key={key}
-                    href={social[key]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-8 h-8 border border-neutral-300 rounded flex items-center justify-center hover:border-black transition-colors"
-                    aria-label={key}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </a>
-                ))
-              : SOCIAL_ICONS.map(({ key, Icon }) => (
-                  <div key={key} className="w-8 h-8 border border-neutral-300 rounded flex items-center justify-center opacity-30">
-                    <Icon className="w-4 h-4" />
-                  </div>
-                ))}
+            {socialLinks.length > 0
+              ? socialLinks.map((link) => {
+                  const Icon = getSocialIcon(link.platform);
+                  return (
+                    <a
+                      key={link.id}
+                      href={link.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-8 h-8 border border-neutral-300 rounded flex items-center justify-center hover:border-black hover:text-black text-neutral-500 bg-white transition-all shadow-sm"
+                      aria-label={link.platform}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </a>
+                  );
+                })
+              : DEFAULT_PLATFORMS.map((key) => {
+                  const Icon = getSocialIcon(key);
+                  return (
+                    <div key={key} className="w-8 h-8 border border-neutral-300 rounded flex items-center justify-center opacity-30">
+                      <Icon className="w-4 h-4" />
+                    </div>
+                  );
+                })}
           </div>
         </div>
 

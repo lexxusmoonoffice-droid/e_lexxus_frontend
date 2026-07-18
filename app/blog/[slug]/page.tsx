@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { serverGetOrNull } from "@/lib/fetcher";
 import type { ApiBlogPost } from "@/lib/types";
+import BackButton from "@/components/BackButton";
 
 export const revalidate = 300;
 
@@ -39,6 +40,7 @@ export default async function BlogPostPage({ params }: { params: { slug: string 
 
   return (
     <article className="max-w-[800px] mx-auto px-4 py-12">
+      <BackButton />
       <div className="text-xs font-bold tracking-wider text-neutral-500">LEXXUS JOURNAL</div>
       <h1 className="text-4xl font-semibold mt-3">{post.title}</h1>
       <div className="text-sm text-neutral-500 mt-3">

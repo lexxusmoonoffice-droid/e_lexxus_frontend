@@ -337,6 +337,19 @@ export function useDeleteReview() {
   });
 }
 
+export function useSubmitInquiry() {
+  return useMutation({
+    mutationFn: (body: {
+      firstName: string;
+      lastName: string;
+      email: string;
+      topic: string;
+      subject: string;
+      message: string;
+    }) => apiPost<{ inquiry: any }>("/inquiries", body),
+  });
+}
+
 /* tiny helper — avoid importing uuid into the browser bundle */
 function cryptoRandom() {
   if (typeof globalThis.crypto?.randomUUID === "function") return globalThis.crypto.randomUUID();

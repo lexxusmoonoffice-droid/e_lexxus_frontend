@@ -47,9 +47,10 @@ export function toLegacyProduct(p: ApiProduct): Product {
     material: p.attributes?.material,
     style: p.attributes?.style,
     color: p.attributes?.color,
-    description: p.description,
+        description: p.description,
     dimensions: p.attributes?.dimensions as Product['dimensions'],
     fileSizeMb: p.fileSizeMb || 0,
+    formats: p.formats || [],
   };
 }
 
